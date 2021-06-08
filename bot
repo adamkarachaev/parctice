@@ -1,0 +1,154 @@
+import telebot
+from pyowm.owm import OWM
+import weather
+import requests
+token = '1870448402:AAHgzOc0h9b1LCWmPuAsUk9qNHQjtvCueHA'
+bot = telebot.TeleBot(token)
+@bot.message_handler(commands=['start'])
+def get_text_messages(message):
+    bot.send_message(message.from_user.id, "Привет! Сейчас я расскажу тебе, что я умею:\n")
+    bot.send_message(message.from_user.id, "Напиши /calc и я стану твоим калькулятором\n")
+    bot.send_message(message.from_user.id, "Напиши /weather и я покажу прогноз погоды в любом городе\n")
+    bot.send_message(message.from_user.id, "Напиши /graphic и я выведу твое слово символом '*'")
+
+@bot.message_handler(commands=['calc'])
+def calculator(message):
+    msg = bot.send_message(message.from_user.id, "Напиши выражение ")
+    bot.register_next_step_handler(msg, get_calc)
+def rpn(s):
+    lex = parse(s)
+    s2 = []
+    r = []
+    oper = ["+", "-", "*", "/", "(", ")"]
+    for a in lex:
+        if a == "(":
+            s2 = [a] + s2
+        elif a in oper:
+            if s2 == []:
+                s2 = [a]
+            elif a == ")":
+                while (True):
+                    q = s2[0]
+                    s2 = s2[1:]
+                    if q == "(":
+                        break
+                    r += [q]
+            elif prty(s2[0]) < prty(a):
+                s2 = [a] + s2
+            else:
+                while (True):
+                    if s2 == []:
+                        break
+                    q = s2[0]
+                    r += [q]
+                    s2 = s2[1:]
+                    if prty(q) == prty(a):
+                        break
+                s2 = [a] + s2
+        else:
+            r += [a]
+    while (s2 != []):
+        q = s2[0]
+        r += [q]
+        s2 = s2[1:]
+    return r
+
+
+def prty(o):
+    if o == "+" or o == "-":
+        return 1
+    elif o == "*" or o == "/":
+        return 2
+    elif o == "(":
+        return 0
+
+
+def parse(s):
+    delims = ["+", "-", "*", "/", "(", ")"]
+    lex = []
+    tmp = ""
+    for a in s:
+        if a != " ":
+            if a in delims:
+                if tmp != "":
+                    lex += [tmp]
+                lex += [a]
+                tmp = ""
+            else:
+                tmp += a
+    if tmp != "":
+        lex += [tmp]
+    return lex
+
+
+def calc(a):
+    s = []
+    for x in a:
+        if (x == '+'):
+            a2 = s[0]
+            a1 = s[1]
+            r = int(a1) + int(a2)
+            s = [r] + s[2:]
+        elif (x == '-'):
+            a2 = s[0]
+            a1 = s[1]
+            r = int(a1) - int(a2)
+            s = [r] + s[2:]
+        elif (x == '*'):
+            a2 = s[0]
+            a1 = s[1]
+            r = int(a1) * int(a2)
+            s = [r] + s[2:]
+        elif (x == '/'):
+            a2 = s[0]
+            a1 = s[1]
+            r = int(a1) // int(a2)
+            s = [r] + s[2:]
+        else:
+            s = [x] + s
+    return(s[0])
+
+def get_calc(message):
+    bot.send_message(message.from_user.id, "Ответ =  " + str(calc(rpn(message.text))))
+
+@bot.message_handler(commands=['weather'])
+def weather(message):
+    msg = bot.send_message(message.from_user.id, "Введи название города ")
+    bot.register_next_step_handler(msg, weather_get)
+def weather_city(city):
+    owm = OWM('64b9b70ff8edff0b58cb0deb80e71895')
+    mgr = owm.weather_manager()
+    weather = mgr.weather_at_place(city).weather
+    temp_dict_celsius = weather.temperature('celsius')
+    x = "Сейчас в городе "+city+' ' + str(temp_dict_celsius['temp']) + " градусов Цельсия!"
+    return(x)
+def weather_get(message):
+    bot.send_message(message.from_user.id, weather_city(message.text))
+
+@bot.message_handler(commands=['graphic'])
+def graph(message):
+    bot.send_message(message.from_user.id, "Напиши фразу на английском маленькими буквами ")
+    bot.register_next_step_handler(message, graph_get)
+
+def graph_get(message):
+    string = message.text
+    switch_dict = direct = {'a': ' #### #\n'
+                                 '#      # \n'
+                                 '#      # \n'
+                                 '#      # \n'
+                                 ' #### #\n', 'b': '#      \n'
+                                                   '#      \n'
+                                                   '#####  \n'
+                                                   '#       # \n'
+                                                   '#####  \n', 'c': ' ####  \n'
+                                                                     '#      # \n'
+                                                                     '#      \n'
+                                                                     '#      # \n'
+                                                                     ' ####  \n', 'd': '.          # \n'
+                                                                                       '          # \n'
+                                                                                       ' ##### \n'
+                                                                                       '#        # \n'
+                                                                                       ' ##### \n'}
+    for i in range(len(string)):
+        bot.send_message(message.from_user.id, switch_dict.get(string[i]))
+bot.polling(none_stop=True, interval=0)
