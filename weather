@@ -1,0 +1,11 @@
+from pyowm.owm import OWM
+
+def weather_city(city):
+    owm = OWM('64b9b70ff8edff0b58cb0deb80e71895')
+    mgr = owm.weather_manager()
+    weather = mgr.weather_at_place(city).weather
+    temp_dict_celsius = weather.temperature('celsius')
+    x = "Сейчас в городе "+city+' ' + str(temp_dict_celsius['temp']) + " градусов Цельсия)"
+    print(x)
+print('Введите название города')
+weather_city(input())
